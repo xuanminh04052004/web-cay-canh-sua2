@@ -131,6 +131,13 @@ const Catalog = () => {
     source: 'greenie' as const
   }));
 
+  // Combine products based on source filter
+  const allProducts = productSource === "greenie" 
+    ? greenieProductsWithSource 
+    : productSource === "sellers" 
+    ? sellerProductsAsPlants 
+    : [...greenieProductsWithSource, ...sellerProductsAsPlants];
+
   const filteredPlants = allProducts
     .filter((plant) => {
       const matchesCategory = activeCategory === "Tất cả" || plant.category === activeCategory;
@@ -363,6 +370,23 @@ const Catalog = () => {
               </button>
             ))}
           </div>
+
+          {/* Seller Products Status Indicators */}
+          {(productSource === "all" || productSource === "sellers") && (
+            <div className="mt-4 space-y-2">
+              {sellerProductsLoading && (
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                  Đang tải sản phẩm từ các shop...
+                </div>
+              )}
+              {sellerProductsError && (
+                <div className="text-sm text-amber-600 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg">
+                  <span>⚠️</span> Không thể tải sản phẩm từ các shop
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Categories */}
