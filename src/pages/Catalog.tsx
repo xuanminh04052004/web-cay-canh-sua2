@@ -86,36 +86,60 @@ const Catalog = () => {
   }
 
   // Get approved seller products
-  const approvedSellerProducts = allSellerProducts.filter(p => {
+  const extractNumericId = (rawId: unknown) => {
+    const s = String(rawId ?? "");
+    const match = s.match(/\d+/);
+    if (!match) return NaN;
+    const n = Number(match[0]);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const approvedSellerProducts = allSellerProducts.filter((p) => {
     const seller = getSellerById(p.sellerId);
-    return p.status === 'approved' && seller?.status === 'approved';
+    const sellerApproved = seller?.status === "approved";
+
+    // Mockup API có thể dùng status khác nhau cho product (vd: `active` vs `approved`).
+    // Vì page chỉ hiển thị khi seller đã được duyệt, ta coi product "active"/"approved" là hiển thị được.
+    const productStatus = (p as any).status as unknown;
+    const productApproved =
+      productStatus == null || productStatus === "approved" || productStatus === "active";
+
+    return sellerApproved && productApproved;
   });
 
   // Convert seller products to Plant format for unified display
-  const sellerProductsAsPlants: (Plant & { sellerId?: string; sellerName?: string })[] = approvedSellerProducts.map(sp => ({
-    id: parseInt(sp.id.replace('sp_', '')) + 10000, // Offset to avoid ID conflicts
-    name: sp.name,
-    category: sp.category as Plant['category'],
-    rating: sp.rating,
-    reviews: sp.reviews,
-    sold: sp.sold,
-    price: sp.price,
-    originalPrice: sp.originalPrice,
-    discount: sp.discount,
-    image: sp.image || '/placeholder.svg',
-    description: sp.description,
-    careLevel: sp.careLevel,
-    light: sp.light,
-    water: sp.water,
-    humidity: sp.humidity,
-    temperature: sp.temperature,
-    gallery: sp.gallery,
-    location: sp.location,
-    benefits: sp.benefits,
-    stock: sp.stock,
-    sellerId: sp.sellerId,
-    sellerName: getSellerById(sp.sellerId)?.shopName,
-  }));
+  const sellerProductsAsPlants: (Plant & { sellerId?: string; sellerName?: string })[] =
+    approvedSellerProducts
+      .map((sp) => {
+        const numericId = extractNumericId(sp.id);
+        if (!Number.isFinite(numericId)) return null;
+
+        return {
+          id: numericId + 10000, // Offset to avoid ID conflicts
+          name: sp.name,
+          category: sp.category as Plant["category"],
+          rating: sp.rating,
+          reviews: sp.reviews,
+          sold: sp.sold,
+          price: sp.price,
+          originalPrice: sp.originalPrice,
+          discount: sp.discount,
+          image: sp.image || "/placeholder.svg",
+          description: sp.description,
+          careLevel: sp.careLevel,
+          light: sp.light,
+          water: sp.water,
+          humidity: sp.humidity,
+          temperature: sp.temperature,
+          gallery: sp.gallery,
+          location: sp.location,
+          benefits: sp.benefits,
+          stock: sp.stock,
+          sellerId: sp.sellerId,
+          sellerName: getSellerById(sp.sellerId)?.shopName,
+        };
+      })
+      .filter((x): x is Plant & { sellerId?: string; sellerName?: string } => x !== null);
 
   // Combine products based on source filter
   const allProducts = productSource === "greenie" 
@@ -468,6 +492,12 @@ const Catalog = () => {
                       </span>
                       <span>•</span>
                       <span>{plant.sold} đã bán</span>
+                      {typeof plant.stock === "number" && (
+                        <>
+                          <span>•</span>
+                          <span>Còn {plant.stock}</span>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
