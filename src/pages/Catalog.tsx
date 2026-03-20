@@ -59,20 +59,13 @@ const Catalog = () => {
   const [selectedCareLevel, setSelectedCareLevel] = useState("Tất cả");
   const [sortBy, setSortBy] = useState("default");
   const [productSource, setProductSource] = useState<"all" | "greenie" | "sellers">("all");
-  const [sellerProductsLoading, setSellerProductsLoading] = useState(false);
-  const [sellerProductsError, setSellerProductsError] = useState<string | null>(null);
   
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { allSellerProducts, allSellers, getSellerById } = useSeller();
   const { products: plantsData, isLoading, fetchError } = useAdmin();
 
-  // Monitor seller products loading state
-  useEffect(() => {
-    setSellerProductsLoading(allSellerProducts.length === 0 && allSellers.length > 0);
-  }, [allSellerProducts, allSellers]);
-
-  if (isLoading && allSellerProducts.length === 0) {
+  if (isLoading) {
     return (
       <PageLayout showHero heroImage={bgShop} heroTitle="Bộ Sưu Tập Cây" heroSubtitle="Khám phá thế giới cây xanh đa dạng và phong phú">
         <div className="container mx-auto px-6 py-12 text-center">
@@ -82,7 +75,7 @@ const Catalog = () => {
     );
   }
 
-  if (fetchError && allSellerProducts.length === 0) {
+  if (fetchError) {
     return (
       <PageLayout showHero heroImage={bgShop} heroTitle="Bộ Sưu Tập Cây" heroSubtitle="Khám phá thế giới cây xanh đa dạng và phong phú">
         <div className="container mx-auto px-6 py-12 text-center">
@@ -99,7 +92,7 @@ const Catalog = () => {
   });
 
   // Convert seller products to Plant format for unified display
-  const sellerProductsAsPlants: (Plant & { sellerId?: string; sellerName?: string; source?: string })[] = approvedSellerProducts.map(sp => ({
+  const sellerProductsAsPlants: (Plant & { sellerId?: string; sellerName?: string })[] = approvedSellerProducts.map(sp => ({
     id: parseInt(sp.id.replace('sp_', '')) + 10000, // Offset to avoid ID conflicts
     name: sp.name,
     category: sp.category as Plant['category'],
@@ -122,21 +115,14 @@ const Catalog = () => {
     stock: sp.stock,
     sellerId: sp.sellerId,
     sellerName: getSellerById(sp.sellerId)?.shopName,
-    source: 'seller', // Track source for analytics
-  }));
-
-  // Add source metadata to Greenie products for tracking
-  const greenieProductsWithSource = plantsData.map(p => ({
-    ...p,
-    source: 'greenie' as const
   }));
 
   // Combine products based on source filter
   const allProducts = productSource === "greenie" 
-    ? greenieProductsWithSource 
+    ? plantsData 
     : productSource === "sellers" 
     ? sellerProductsAsPlants 
-    : [...greenieProductsWithSource, ...sellerProductsAsPlants];
+    : [...plantsData, ...sellerProductsAsPlants];
 
   const filteredPlants = allProducts
     .filter((plant) => {
@@ -163,10 +149,6 @@ const Catalog = () => {
     });
 
   const handleAddToCart = (plant: typeof allProducts[0]) => {
-    // Prevent adding out-of-stock items to cart.
-    if (typeof plant.stock === "number" && plant.stock <= 0) {
-      return;
-    }
     addToCart({
       id: plant.id,
       name: plant.name,
@@ -370,23 +352,6 @@ const Catalog = () => {
               </button>
             ))}
           </div>
-
-          {/* Seller Products Status Indicators */}
-          {(productSource === "all" || productSource === "sellers") && (
-            <div className="mt-4 space-y-2">
-              {sellerProductsLoading && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                  Đang tải sản phẩm từ các shop...
-                </div>
-              )}
-              {sellerProductsError && (
-                <div className="text-sm text-amber-600 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg">
-                  <span>⚠️</span> Không thể tải sản phẩm từ các shop
-                </div>
-              )}
-            </div>
-          )}
         </section>
 
         {/* Categories */}
@@ -504,12 +469,6 @@ const Catalog = () => {
                       <span>•</span>
                       <span>{plant.sold} đã bán</span>
                     </div>
-
-                    {typeof plant.stock === "number" && (
-                      <div className={`mb-3 text-xs ${plant.stock <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                        Còn lại: <span className="font-medium text-foreground">{plant.stock}</span> sản phẩm
-                      </div>
-                    )}
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="inline-block px-2 py-0.5 bg-primary/20 text-primary text-xs rounded mr-2">
@@ -520,15 +479,9 @@ const Catalog = () => {
                           {formatPrice(plant.originalPrice)}
                         </span>
                       </div>
-                      <button
+                      <button 
                         onClick={() => handleAddToCart(plant)}
-                        disabled={typeof plant.stock === "number" && plant.stock <= 0}
-                        className={`p-2 rounded-full transition-colors ${
-                          typeof plant.stock === "number" && plant.stock <= 0
-                            ? "bg-muted text-muted-foreground cursor-not-allowed"
-                            : "bg-primary text-primary-foreground hover:bg-primary/90"
-                        }`}
-                        title={typeof plant.stock === "number" && plant.stock <= 0 ? "Hết hàng" : "Thêm vào giỏ"}
+                        className="p-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
                       >
                         <ShoppingCart className="w-4 h-4" />
                       </button>
